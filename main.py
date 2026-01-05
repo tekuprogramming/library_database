@@ -37,6 +37,23 @@ def getcon():
         messagebox.showerror("Connection error", str(e))
         raise
 
+def fetch_all(sql, params=None):
+    con = getcon()
+    try:
+        cur = con.cursor()
+        cur.execute(sql, params or [])
+        rows = cur.fetchall()
+        cur.close()
+        con.commit()
+        return rows
+    except pyodbc.Error as e:
+        con.rollback()
+        logging.error(f"Error: {e}")
+        messagebox.showerror("Connection error", str(e))
+        return []
+    finally:
+        con.close()
+
 class Library_App(tkinter.Tk):
     def __init__(self):
         super().__init__()
@@ -126,10 +143,43 @@ class Book_Editor(tkinter.Toplevel):
         ttk.Button(buttons, text="Save").pack(side="left", padx=5)
         ttk.Button(buttons, text="Cancel").pack(side="right", padx=5)
 
-        # self.publisher = fetchall
+        self.publisher = fetch_all("select id, name from publisher order by name")
+        self.publisher2["values"] = [f"{p[0]} - {p[1]}" for p in self.publisher]
+
+        self.author = fetch_all("select id, surname, name, email, is_active from author")
+        for i in self.author:
+            self.author2.insert("end", f"{i[0]} - {i[1]} {i[2]} {i[3]} {i[4]} {i[5]}")
+
+        if self.mode == "edit" and self.book_id:
+            self.load_book()
+
+    def load_book(self):
+        rows = fetch_all("select b.name, b.publisher, b.publishment_date, b.rating, b.binding from book b where b.id = ?", (self.book_id,))
+        if not rows:
+            messagebox.showerror("Error: Book wasn't found")
+            return
+        name, publisher, publishment_date, rating, binding = rows[0]
+        self.name_e.insert(0, name)
+        self.publisher_e.insert(0, publisher)
+        self.publishment_date_e.insert(0, str(publishment_date) if publishment_date else "")
+        self.rating_e.insert(0, str(rating) if rating is not None else "")
+
+        for idx, p in enumerate(self.publisher):
+            if p[0] == publisher:
+                self.publisher2.current(idx)
+                break
+
+        # author = fetch_all()
+
+    # def save(self):
+       #  try:
+            # name = self.name_e.get().strip()
+            # if not name:
+                # raise ValueError("Book name cannot be empty")
 
 library = Library_App()
 
 
 library.mainloop()
+
 
