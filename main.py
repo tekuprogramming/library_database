@@ -163,23 +163,53 @@ class Book_Editor(tkinter.Toplevel):
         self.publisher_e.insert(0, publisher)
         self.publishment_date_e.insert(0, str(publishment_date) if publishment_date else "")
         self.rating_e.insert(0, str(rating) if rating is not None else "")
+        self.binding_e.set(binding)
 
         for idx, p in enumerate(self.publisher):
             if p[0] == publisher:
                 self.publisher2.current(idx)
                 break
 
-        # author = fetch_all()
+    def save(self):
+        try:
+            name = self.name_e.get().strip()
+            if not name:
+               raise ValueError("Book name cannot be empty")
+            pub_val = self.publisher2.get()
+            if not pub_val:
+                raise ValueError("Publisher cannot be empty")
+            publisher_id = int(pub_val.split(" - ")[0])
+        
+            date_str = self.publishment_date_e.get().strip() or None
+            rating = self.rating_e.get()
+            binding = self.binding_e.get()
 
-    # def save(self):
-       #  try:
-            # name = self.name_e.get().strip()
-            # if not name:
-                # raise ValueError("Book name cannot be empty")
+            selected_index = self.author2.curselection()
+            author_index = []
+            for i in selected_index:
+                author_index.append(int(self.author2.get(i).split(" - ")[0]))
+
+            con = getcon()
+            try:
+                cur = con.cursor()
+                if self.mode == "create":
+                    cur.execute("insert into book (name, publisher, publishment_date, rating, binding) values (?,?,?,?,?)",
+                                (name, publisher_id, date_str, rating, binding))
+                con.commit()
+                messagebox.showinfo("Book saved", "Book was successfully saved")
+            except pyodbc.Error as e:
+                con.rollback()
+                logging.error(e)
+                messagebox.showerror("Connection error", str(e))
+            finally:
+                con.close()
+        except Exception as e:
+            messagebox.showerror("Connection error", str(e))
 
 library = Library_App()
 
 
 library.mainloop()
+
 
 
