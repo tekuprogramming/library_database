@@ -1,0 +1,26 @@
+[
+    {
+        "surname": "Smith",
+        "name": "John",
+        "email": "john.smith@example.com",
+        "is_active": 1
+    },
+    {
+        "surname": "Doe",
+        "name": "Jane",
+        "email": "jane.doe@example.com",
+        "is_active": 1
+    },
+    {
+        "surname": "Brown",
+        "name": "Charlie",
+        "email": "charlie.brown@example.com",
+        "is_active": 1
+    },
+    {
+        "surname": "Wilson",
+        "name": "Emily",
+        "email": "emily.wilson@example.com",
+        "is_active": 0
+    }
+]

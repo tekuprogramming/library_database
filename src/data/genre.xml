@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<genres>
+    <genre name="Science Fiction"/>
+    <genre name="Fantasy"/>
+    <genre name="Mystery"/>
+    <genre name="Romance"/>
+    <genre name="Thriller"/>
+    <genre name="Non-Fiction"/>
+</genres>
