@@ -5,7 +5,7 @@ from src.db.repositories.author_repository import AuthorRepository
 from src.db.repositories.book_repository import BookRepository
 from src.db.repositories.bookauthor_repository import BookAuthorRepository
 from src.db.repositories.publisher_repository import PublisherRepository
-from src.validation.validators import validate_rating, validate_binding
+from src.validation.validators import validate_rating, validate_binding, validate_date
 
 
 class BookEditor(tkinter.Toplevel):
@@ -154,4 +154,5 @@ class BookEditor(tkinter.Toplevel):
             self.destroy()
         except Exception as e:
             messagebox.showerror("Error", str(e))
+
 
