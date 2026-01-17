@@ -57,9 +57,9 @@ values
 
 insert into book_author (author_id, book_id, is_active)
 values
-(1, 1, 1),
-(2, 1, 1),
-(1, 2, 1),
+(1, 3, 1),
+(2, 4, 1),
+(1, 5, 1),
 (3, 3, 1);
 
 create or alter view vw_book_list as
@@ -84,5 +84,6 @@ from publisher p
 left join book b on b.publisher = p.id
 left join book_author ba on ba.book_id = b.id and ba.is_active = 1
 group by p.id, p.name;
+
 
 commit;
