@@ -1,3 +1,24 @@
+from datetime import datetime
+from tkinter import messagebox
+
+def validate_date(date_str):
+    """
+    Validates that the input string is a valid date in YYYY-MM-DD format.
+    Returns the same string if valid, or None if empty.
+    Shows a messagebox if invalid.
+
+    :param date_str: str, the date input to validate
+    :return: str or None
+    """
+    if not date_str:
+        return None  # allow empty input
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        return dt.strftime("%Y-%m-%d")  # normalize format
+    except ValueError:
+        messagebox.showerror("Invalid Date", "Please enter a valid date in format YYYY-MM-DD.")
+        return None
+
 def validate_binding(binding):
     """
     Validates that the provided book binding is one of the allowed types.
@@ -31,4 +52,5 @@ def validate_rating(value):
     r = float(value)
     if not (0 <= r <= 5):
         raise ValueError("Rating 0–5")
+
     return r
