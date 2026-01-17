@@ -1,5 +1,4 @@
 import pyodbc
-from tkinter import messagebox
 import logging
 
 from src.config import config
@@ -50,4 +49,5 @@ def get_connection():
         raise DatabaseConnectionError(
             "An unexpected database error occurred."
         ) from e
+
 
