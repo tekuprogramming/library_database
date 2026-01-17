@@ -138,7 +138,10 @@ class BookEditor(tkinter.Toplevel):
             rating = validate_rating(self.rating.get().strip())
             binding = self.binding_cb.get(); validate_binding(binding)
             author_ids = [int(self.author_lb.get(i).split(" - ")[0]) for i in self.author_lb.curselection()]
+            date_str = validate_date(self.date.get().strip())
 
+            if self.date.get().strip() and date_str is None:
+                return
             if self.mode=="create":
                 book_id = self.book_repo.insert(name, publisher_id, date_str, rating, binding)
                 self.book_author_repo.assign_authors(book_id, author_ids)
@@ -151,3 +154,4 @@ class BookEditor(tkinter.Toplevel):
             self.destroy()
         except Exception as e:
             messagebox.showerror("Error", str(e))
+
