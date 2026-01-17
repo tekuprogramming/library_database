@@ -4,7 +4,7 @@ Author: Milana Poljanskova
 Contact: mila.p.06@seznam.cz
 Date: 11.01.2026
 School: SPŠE Ječná
-Project type: School project - GUI database application (D1 – Repository Pattern)
+Project type: School project - GUI database application (D1 - Repository Pattern)
 
 1. Description
 
