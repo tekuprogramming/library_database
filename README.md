@@ -50,11 +50,11 @@ Project files are organized as follows:
 4. Create a database user with appropriate permissions.
 5. Run SQL script in `/db` to create the database schema and views:
     - database.sql
-    - views.sql
 6. Import test data using the Import tab in the application:
     - authors.json
     - publishers.csv
     - genres.xml
+    Afterwards run the inserts in the SQL script for the other tables.
 7. Configure database connection in `config.ini` or in Settings tab:
     - driver
     - server
