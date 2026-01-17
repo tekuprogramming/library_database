@@ -2,93 +2,96 @@ from tkinter import ttk, messagebox
 import configparser
 import logging
 
-from src.config.config import CONFIG_PATH, config
+from src.config.config import CONFIG_PATH
 
 # Load configuration from config.ini
 config = configparser.ConfigParser()
 config.read(CONFIG_PATH)
 
+
 class SettingsTab(ttk.Frame):
     """
     UI tab for editing and saving database connection settings.
 
-    Features:
-    - Allows the user to view and edit ODBC driver, server, database, and connection options
-    - Saves updated settings back to config.ini
-    - Provides default values if the config file is missing entries
+    Uses SQL Authentication (username + password).
     """
 
     def __init__(self, parent):
-        """
-        Initializes the Settings tab and its UI components.
-
-        :param parent: Parent widget (Notebook or Frame)
-        """
         super().__init__(parent)
-        # Header label
+
         ttk.Label(self, text="Connection settings").pack(anchor="w", padx=8, pady=8)
 
-        # Frame for input fields
         frame = ttk.Frame(self)
         frame.pack(fill="x", padx=8, pady=8)
 
-        # Create entry fields for each configuration option
-        self.driver_e = ttk.Entry(frame, width=50); self._row(frame,0,"ODBC Driver",self.driver_e)
-        self.server_e = ttk.Entry(frame, width=50); self._row(frame,1,"Server",self.server_e)
-        self.db_e = ttk.Entry(frame, width=50); self._row(frame,2,"Database",self.db_e)
-        self.tc_e = ttk.Entry(frame, width=50); self._row(frame,3,"Trusted Connection",self.tc_e)
-        self.en_e = ttk.Entry(frame, width=50); self._row(frame,4,"Encrypt",self.en_e)
-        self.tsc_e = ttk.Entry(frame, width=50); self._row(frame,5,"Trust Server Certificate",self.tsc_e)
+        # Database fields
+        self.driver_e = ttk.Entry(frame, width=50)
+        self._row(frame, 0, "ODBC Driver", self.driver_e)
 
-        # Save button
+        self.server_e = ttk.Entry(frame, width=50)
+        self._row(frame, 1, "Server", self.server_e)
+
+        self.db_e = ttk.Entry(frame, width=50)
+        self._row(frame, 2, "Database", self.db_e)
+
+        self.user_e = ttk.Entry(frame, width=50)
+        self._row(frame, 3, "Username", self.user_e)
+
+        self.pass_e = ttk.Entry(frame, width=50, show="*")
+        self._row(frame, 4, "Password", self.pass_e)
+
+        self.en_e = ttk.Entry(frame, width=50)
+        self._row(frame, 5, "Encrypt", self.en_e)
+
+        self.tsc_e = ttk.Entry(frame, width=50)
+        self._row(frame, 6, "Trust Server Certificate", self.tsc_e)
+
         ttk.Button(self, text="Save to config.ini", command=self.save).pack(padx=8, pady=8)
 
-        # Populate entry fields with current values from config (or default if missing)
-        self.driver_e.insert(0, config.get("database","driver",fallback="ODBC Driver 18 for SQL Server"))
-        self.server_e.insert(0, config.get("database","server",fallback="localhost\\SQLEXPRESS"))
-        self.db_e.insert(0, config.get("database","database",fallback="library"))
-        self.tc_e.insert(0, config.get("database","trusted_connection",fallback="yes"))
-        self.en_e.insert(0, config.get("database","encrypt",fallback="yes"))
-        self.tsc_e.insert(0, config.get("database","trust_server_certificate",fallback="yes"))
+        # Populate from config.ini
+        self.driver_e.insert(0, config.get("database", "driver", fallback="ODBC Driver 18 for SQL Server"))
+        self.server_e.insert(0, config.get("database", "server", fallback="localhost"))
+        self.db_e.insert(0, config.get("database", "database", fallback="library"))
+        self.user_e.insert(0, config.get("database", "username", fallback=""))
+        self.pass_e.insert(0, config.get("database", "password", fallback=""))
+        self.en_e.insert(0, config.get("database", "encrypt", fallback="no"))
+        self.tsc_e.insert(0, config.get("database", "trust_server_certificate", fallback="yes"))
 
     def _row(self, frame, r, label, entry):
-        """
-        Helper method to create a labeled row in the settings form.
-
-        :param frame: Parent frame
-        :param r: Row index
-        :param label: Label text
-        :param entry: Entry widget to place
-        """
-        ttk.Label(frame, text=label).grid(row=r,column=0,sticky="w")
-        entry.grid(row=r,column=1,sticky="we",padx=6,pady=4)
+        ttk.Label(frame, text=label).grid(row=r, column=0, sticky="w")
+        entry.grid(row=r, column=1, sticky="we", padx=6, pady=4)
         frame.grid_columnconfigure(1, weight=1)
 
     def save(self):
-        """
-        Saves the current input values into config.ini.
-
-        Steps:
-        - Adds the [database] section if it doesn't exist
-        - Writes each field value into the config
-        - Saves the config to disk at CONFIG_PATH
-        - Displays info message on success
-        - Logs and shows error message if an exception occurs
-        """
         try:
-            if "database" not in config.sections():
+            required = {
+                "driver": self.driver_e.get().strip(),
+                "server": self.server_e.get().strip(),
+                "database": self.db_e.get().strip(),
+                "username": self.user_e.get().strip(),
+                "password": self.pass_e.get().strip()
+            }
+
+            missing = [k for k, v in required.items() if not v]
+            if missing:
+                raise ValueError(f"Missing required field(s): {', '.join(missing)}")
+
+            if "database" not in config:
                 config.add_section("database")
-            # Update config values from entry fields
-            config.set("database","driver",self.driver_e.get())
-            config.set("database","server",self.server_e.get())
-            config.set("database","database",self.db_e.get())
-            config.set("database","trusted_connection",self.tc_e.get())
-            config.set("database","encrypt",self.en_e.get())
-            config.set("database","trust_server_certificate",self.tsc_e.get())
-            # Save to file
-            with open(CONFIG_PATH,"w",encoding="utf-8") as f:
+
+            config.set("database", "driver", required["driver"])
+            config.set("database", "server", required["server"])
+            config.set("database", "database", required["database"])
+            config.set("database", "username", required["username"])
+            config.set("database", "password", required["password"])
+            config.set("database", "encrypt", self.en_e.get().strip())
+            config.set("database", "trust_server_certificate", self.tsc_e.get().strip())
+
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 config.write(f)
-            messagebox.showinfo("Done","Settings were saved. Restart the application.")
+
+            messagebox.showinfo("Done", "Settings saved. Restart the application.")
+
         except Exception as e:
-            logging.error(e)
-            messagebox.showerror("Error while saving", str(e))
+            logging.error("Failed to save settings", exc_info=True)
+            messagebox.showerror("Error", str(e))
