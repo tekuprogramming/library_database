@@ -43,21 +43,45 @@ class ImportTab(ttk.Frame):
 
     def import_publishers_csv(self):
         """
-        Imports publishers from a CSV file.
+        Imports publishers from a CSV file safely.
 
-        - Opens a file dialog for CSV selection
-        - Reads CSV using DictReader
-        - Calls PublisherRepository.bulk_insert() to insert records
-        - Shows a messagebox on success or error
+        - Opens a file dialog for CSV selection.
+        - Validates that required fields (name) are present.
+        - Skips invalid rows without breaking the import.
+        - Shows warnings for skipped rows and info when import completes.
         """
-        path = filedialog.askopenfilename(title="Publisher CSV", filetypes=[("CSV","*.csv")])
-        if not path: return
+        path = filedialog.askopenfilename(title="Publisher CSV", filetypes=[("CSV", "*.csv")])
+        if not path:
+            return
+
+        skipped_rows = []
+        inserted_count = 0
         try:
             with open(path, newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
-                publishers = list(reader)
-                self.publisher_repo.bulk_insert(publishers)
-            messagebox.showinfo("Done","CSV import completed")
+                publishers = []
+                for i, row in enumerate(reader, start=1):
+                    # Strip whitespace from all fields
+                    row = {k: (v.strip() if v else None) for k, v in row.items()}
+
+                    # Check required field 'name'
+                    if not row.get("name"):
+                        skipped_rows.append(i)
+                        continue  # skip this row entirely
+
+                    publishers.append(row)
+
+                # Insert valid rows
+                if publishers:
+                    self.publisher_repo.bulk_insert(publishers)
+                    inserted_count = len(publishers)
+
+            # Show results
+            msg = f"CSV import completed.\nInserted {inserted_count} row(s)."
+            if skipped_rows:
+                msg += f"\nSkipped rows: {', '.join(map(str, skipped_rows))} (missing 'name')"
+            messagebox.showinfo("Done", msg)
+
         except Exception as e:
             messagebox.showerror("CSV import error", str(e))
 
@@ -100,4 +124,5 @@ class ImportTab(ttk.Frame):
             self.genre_repo.bulk_insert(genres)
             messagebox.showinfo("Done","XML import completed")
         except Exception as e:
+
             messagebox.showerror("XML import error", str(e))
