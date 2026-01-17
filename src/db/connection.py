@@ -4,31 +4,50 @@ import logging
 
 from src.config import config
 
+class DatabaseConnectionError(Exception):
+    """Custom exception for database connection failures."""
+    pass
+
 def get_connection():
     """
-    Creates and returns a new database connection using pyodbc.
-
-    Connection parameters are loaded from the application configuration
-    (config.ini). The function uses Windows Authentication
-    (Trusted_Connection) and supports encrypted connections.
-
-    :return: pyodbc.Connection object
-    :raises: Exception if the connection cannot be established
+    Creates and returns a new database connection using SQL Authentication.
+    Connection parameters are loaded from config.ini.
     """
     try:
-        con = pyodbc.connect(
-            f"DRIVER={{{config['database']['driver']}}};"
-            f"SERVER={config['database']['server']};"
-            f"DATABASE={config['database']['database']};"
-            f"Trusted_Connection={config['database']['trusted_connection']};"
-            f"Encrypt={config['database']['encrypt']};"
-            f"TrustServerCertificate={config['database']['trust_server_certificate']};"
+        db = config['database']
+
+        # Check that all required keys are present
+        required_keys = ['driver', 'server', 'database', 'username', 'password']
+        missing_keys = [key for key in required_keys if key not in db or not db[key].strip()]
+        if missing_keys:
+            raise DatabaseConnectionError(
+                f"Missing required configuration in config.ini: {', '.join(missing_keys)}"
+            )
+
+        conn_str = (
+            f"DRIVER={{{db['driver']}}};"
+            f"SERVER={db['server']};"
+            f"DATABASE={db['database']};"
+            f"UID={db['username']};"
+            f"PWD={db['password']};"
+            f"Encrypt={db.get('encrypt', 'no')};"
+            f"TrustServerCertificate={db.get('trust_server_certificate', 'yes')};"
         )
-        # Disable autocommit to allow explicit transaction control
+
+        con = pyodbc.connect(conn_str)
         con.autocommit = False
         return con
-    except Exception as e:
-        # Disable autocommit to allow explicit transaction control
-        logging.error(e)
-        messagebox.showerror("Connection error", str(e))
+
+    except DatabaseConnectionError:
         raise
+    except pyodbc.OperationalError as e:
+        logging.error("Database connection failed", exc_info=True)
+        raise DatabaseConnectionError(
+            "Failed to connect to the database. Check the server name, login credentials, and SQL Server availability."
+        ) from e
+    except pyodbc.Error as e:
+        logging.error("Unexpected database error", exc_info=True)
+        raise DatabaseConnectionError(
+            "An unexpected database error occurred."
+        ) from e
+
