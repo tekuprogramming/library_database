@@ -48,7 +48,7 @@ Project files are organized as follows:
     pip install pyodbc
 3. Ensure Microsoft SQL Server is installed and running.
 4. Create a database user with appropriate permissions.
-5. Run SQL scripts in `/db` to create the database schema and views:
+5. Run SQL script in `/db` to create the database schema and views:
     - database.sql
     - views.sql
 6. Import test data using the Import tab in the application:
