@@ -1,98 +1,127 @@
-from tkinter import ttk, messagebox
-import configparser
-import logging
+from tkinter import ttk, filedialog, messagebox
+import csv, json, xml.etree.ElementTree as ET
 
-from src.config.config import CONFIG_PATH
+from src.db.repositories.author_repository import AuthorRepository
+from src.db.repositories.genre_repository import GenreRepository
+from src.db.repositories.publisher_repository import PublisherRepository
 
-# Load configuration from config.ini
-config = configparser.ConfigParser()
-config.read(CONFIG_PATH)
-
-
-class SettingsTab(ttk.Frame):
+class ImportTab(ttk.Frame):
     """
-    UI tab for editing and saving database connection settings.
+    UI tab for importing data into the library database.
 
-    Uses SQL Authentication (username + password).
+    Supports:
+    - Importing publishers from CSV
+    - Importing authors from JSON
+    - Importing genres from XML
+
+    Uses the respective repositories for database operations:
+    PublisherRepository, AuthorRepository, GenreRepository
     """
-
     def __init__(self, parent):
+        """
+        Initializes the Import tab and its UI components.
+
+        :param parent: Parent widget (Notebook)
+        """
         super().__init__(parent)
+        # Repositories for each entity type
+        self.publisher_repo = PublisherRepository()
+        self.author_repo = AuthorRepository()
+        self.genre_repo = GenreRepository()
 
-        ttk.Label(self, text="Connection settings").pack(anchor="w", padx=8, pady=8)
+        # Label for tab
+        ttk.Label(self, text="Import data into tables").pack(anchor="w", padx=8, pady=8)
 
+        # Buttons frame
         frame = ttk.Frame(self)
         frame.pack(fill="x", padx=8, pady=8)
+        # Import buttons
+        ttk.Button(frame, text="Import publishers (CSV)", command=self.import_publishers_csv).pack(side="left", padx=6)
+        ttk.Button(frame, text="Import authors (JSON)", command=self.import_authors_json).pack(side="left", padx=6)
+        ttk.Button(frame, text="Import genres (XML)", command=self.import_genres_xml).pack(side="left", padx=6)
 
-        # Database fields
-        self.driver_e = ttk.Entry(frame, width=50)
-        self._row(frame, 0, "ODBC Driver", self.driver_e)
+    def import_publishers_csv(self):
+        """
+        Imports publishers from a CSV file safely.
 
-        self.server_e = ttk.Entry(frame, width=50)
-        self._row(frame, 1, "Server", self.server_e)
+        - Opens a file dialog for CSV selection.
+        - Validates that required fields (name) are present.
+        - Skips invalid rows without breaking the import.
+        - Shows warnings for skipped rows and info when import completes.
+        """
+        path = filedialog.askopenfilename(title="Publisher CSV", filetypes=[("CSV", "*.csv")])
+        if not path:
+            return
 
-        self.db_e = ttk.Entry(frame, width=50)
-        self._row(frame, 2, "Database", self.db_e)
-
-        self.user_e = ttk.Entry(frame, width=50)
-        self._row(frame, 3, "Username", self.user_e)
-
-        self.pass_e = ttk.Entry(frame, width=50, show="*")
-        self._row(frame, 4, "Password", self.pass_e)
-
-        self.en_e = ttk.Entry(frame, width=50)
-        self._row(frame, 5, "Encrypt", self.en_e)
-
-        self.tsc_e = ttk.Entry(frame, width=50)
-        self._row(frame, 6, "Trust Server Certificate", self.tsc_e)
-
-        ttk.Button(self, text="Save to config.ini", command=self.save).pack(padx=8, pady=8)
-
-        # Populate from config.ini
-        self.driver_e.insert(0, config.get("database", "driver", fallback="ODBC Driver 18 for SQL Server"))
-        self.server_e.insert(0, config.get("database", "server", fallback="localhost"))
-        self.db_e.insert(0, config.get("database", "database", fallback="library"))
-        self.user_e.insert(0, config.get("database", "username", fallback=""))
-        self.pass_e.insert(0, config.get("database", "password", fallback=""))
-        self.en_e.insert(0, config.get("database", "encrypt", fallback="no"))
-        self.tsc_e.insert(0, config.get("database", "trust_server_certificate", fallback="yes"))
-
-    def _row(self, frame, r, label, entry):
-        ttk.Label(frame, text=label).grid(row=r, column=0, sticky="w")
-        entry.grid(row=r, column=1, sticky="we", padx=6, pady=4)
-        frame.grid_columnconfigure(1, weight=1)
-
-    def save(self):
+        skipped_rows = []
+        inserted_count = 0
         try:
-            required = {
-                "driver": self.driver_e.get().strip(),
-                "server": self.server_e.get().strip(),
-                "database": self.db_e.get().strip(),
-                "username": self.user_e.get().strip(),
-                "password": self.pass_e.get().strip()
-            }
+            with open(path, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                publishers = []
+                for i, row in enumerate(reader, start=1):
+                    # Strip whitespace from all fields
+                    row = {k: (v.strip() if v else None) for k, v in row.items()}
 
-            missing = [k for k, v in required.items() if not v]
-            if missing:
-                raise ValueError(f"Missing required field(s): {', '.join(missing)}")
+                    # Check required field 'name'
+                    if not row.get("name"):
+                        skipped_rows.append(i)
+                        continue  # skip this row entirely
 
-            if "database" not in config:
-                config.add_section("database")
+                    publishers.append(row)
 
-            config.set("database", "driver", required["driver"])
-            config.set("database", "server", required["server"])
-            config.set("database", "database", required["database"])
-            config.set("database", "username", required["username"])
-            config.set("database", "password", required["password"])
-            config.set("database", "encrypt", self.en_e.get().strip())
-            config.set("database", "trust_server_certificate", self.tsc_e.get().strip())
+                # Insert valid rows
+                if publishers:
+                    self.publisher_repo.bulk_insert(publishers)
+                    inserted_count = len(publishers)
 
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                config.write(f)
-
-            messagebox.showinfo("Done", "Settings saved. Restart the application.")
+            # Show results
+            msg = f"CSV import completed.\nInserted {inserted_count} row(s)."
+            if skipped_rows:
+                msg += f"\nSkipped rows: {', '.join(map(str, skipped_rows))} (missing 'name')"
+            messagebox.showinfo("Done", msg)
 
         except Exception as e:
-            logging.error("Failed to save settings", exc_info=True)
-            messagebox.showerror("Error", str(e))
+            messagebox.showerror("CSV import error", str(e))
+
+    def import_authors_json(self):
+        """
+        Imports authors from a JSON file.
+
+        - Opens a file dialog for JSON selection
+        - Loads JSON data
+        - Calls AuthorRepository.bulk_insert() to insert records
+        - Shows a messagebox on success or error
+        """
+        path = filedialog.askopenfilename(title="Author JSON", filetypes=[("JSON","*.json")])
+        if not path: return
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+                self.author_repo.bulk_insert(data)
+            messagebox.showinfo("Done","JSON import completed")
+        except Exception as e:
+            messagebox.showerror("JSON import error", str(e))
+
+    def import_genres_xml(self):
+        """
+        Imports genres from an XML file.
+
+        - Opens a file dialog for XML selection
+        - Parses XML using ElementTree
+        - Extracts <genre> elements and their 'name' attributes or text
+        - Calls GenreRepository.bulk_insert() to insert records
+        - Shows a messagebox on success or error
+        """
+        path = filedialog.askopenfilename(title="Genre XML", filetypes=[("XML","*.xml")])
+        if not path: return
+        try:
+            tree = ET.parse(path)
+            root = tree.getroot()
+            # Create list of genre dictionaries for insertion
+            genres = [{"name": g.get("name") or (g.text or "").strip()} for g in root.findall(".//genre")]
+            self.genre_repo.bulk_insert(genres)
+            messagebox.showinfo("Done","XML import completed")
+        except Exception as e:
+            messagebox.showerror("XML import error", str(e))
 
